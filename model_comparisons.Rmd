@@ -1,0 +1,348 @@
+---
+title: "raw data plot"
+output: html_notebook
+---
+
+
+```{r include=FALSE}
+library(readxl)
+library(ggplot2)
+library(magrittr)
+library(tidyverse)
+library(cowplot)
+```
+Loading data
+
+```{r}
+exp_data <- read_excel("exp_data.xlsx")
+exp_data
+```
+
+```{r fig.height=3, fig.width=9}
+ggplot(exp_data)+geom_jitter(aes(x=vol,y=as.factor(ndiv),color=as.factor(ndiv)),alpha=0.2)+scale_x_continuous(trans="log2")
+```
+
+```{r fig.height=3, fig.width=9}
+ggplot(exp_data)+geom_jitter(aes(x=log2(vol),y=as.factor(ndiv)),alpha=0.05)+
+  annotate("segment", x = log2(170),xend=log2(170), y = 0.5, yend = 1.45, alpha = .6,colour = "blue",size=3)+
+  annotate("rect", xmin = log2(170)+1-0.5, xmax = log2(170)+1+0.5, ymin = 1.5, ymax = 1.75, alpha = .6,fill = "blue")+
+  annotate("rect", xmin = log2(170)+2-0.5, xmax = log2(170)+2+0.5, ymin = 2.5, ymax = 2.75, alpha = .6,fill = "blue")+
+  annotate("rect", xmin = log2(170)+3-0.5, xmax = log2(170)+3+0.5, ymin = 3.5, ymax = 3.75, alpha = .6,fill = "blue")+
+  annotate("rect", xmin = log2(170)+4-0.5, xmax = log2(170)+4+0.5, ymin = 4.5, ymax = 4.75, alpha = .6,fill = "blue")+
+  annotate("segment", x = log2(147)+0.7, xend = log2(147)+0.7, y = 0.5, yend = 1.45, alpha = .6,colour = "red",size=3)+
+  annotate("rect", xmin = log2(147)+1-0.3, xmax = log2(147)+1+0.3, ymin = 1.75, ymax = 2, alpha = .6,fill = "red")+
+  annotate("rect", xmin = log2(147)+2-0.3, xmax = log2(147)+2+0.3, ymin = 2.75, ymax = 3, alpha = .6,fill = "red")+
+  annotate("rect", xmin = log2(147)+3-0.3, xmax = log2(147)+3+0.3, ymin = 3.75, ymax = 4, alpha = .6,fill = "red")+
+  annotate("rect", xmin = log2(147)+4-0.3, xmax = log2(147)+4+0.3, ymin = 4.75, ymax = 5, alpha = .6,fill = "red")+
+  annotate("segment", x = log2(143)+0.7, xend = log2(143)+0.7, y=0.5 , yend = 1.45, alpha = .6,colour = "green",size=3)+
+  annotate("rect", xmin = log2(143)+0.99-0.3, xmax = log2(143)+0.99+0.3, ymin = 2, ymax = 2.25, alpha = .6,fill = "green")+
+  annotate("rect", xmin = log2(143)+2.14-0.3, xmax = log2(143)+2.14+0.3, ymin = 3, ymax = 3.25, alpha = .6,fill = "green")+
+  annotate("rect", xmin = log2(143)+3-0.3, xmax = log2(143)+3+0.3, ymin = 4, ymax = 4.25, alpha = .6,fill = "green")+
+  annotate("rect", xmin = log2(143)+4-0.3, xmax = log2(143)+4+0.3, ymin = 5, ymax = 5.25, alpha = .6,fill = "green")
+```
+```{r}
+p_pl<-function(vl,nd,ss,sig){
+  if(nd<=0){
+    p<-pnorm(nd-log2(vl/ss),0,sig)
+  }else{
+    p<-pnorm(nd-log2(vl/ss),0,sig)-pnorm(nd-1-log2(vl/ss),0,sig)
+  }
+  if(is.nan(p)){
+    return(-Inf)
+  }else{
+    if(p<=0){return(-Inf)}else{return(p)}
+    
+  }
+}
+
+pf_pl<-function(ss,sig){
+  p<-mapply(p_pl,expmoddf$vol,expmoddf$ndiv,ss,sig)
+  return(p)
+}
+
+p_fp<-function(...){
+  x<-list(...)
+  vl<-x[[1]]
+  nd<-x[[2]]
+  ss<-x[[3]]
+  sig<-x[[4]]
+  zf<-as.numeric(x[5:length(x)])
+  
+  z<-c(zf,seq(length(zf),nd+1))
+  if(nd<=0){
+    p<-pnorm(z[1]-log2(vl/ss),0,sig)
+  }else{
+    p<-pnorm(z[nd+1]-log2(vl/ss),0,sig)-pnorm(z[nd]-log2(vl/ss),0,sig)
+  }
+  if(is.nan(p)){
+    return(-Inf)
+  }else{
+    if(p<=0){return(-Inf)}else{return(p)}
+    
+  }
+}
+
+pf_3p<-function(ss,sig,zf){
+  p<-mapply(p_fp,expmoddf$vol,expmoddf$ndiv,ss,sig,zf[1])
+  return(p)
+}
+
+pf_5p<-function(ss,sig,zf){
+  p<-mapply(p_fp,expmoddf$vol,expmoddf$ndiv,ss,sig,zf[1],zf[2],zf[3])
+  return(p)
+}
+
+pf_d<-function(ss,sig,zf){
+  p<-mapply(p_fp,expmoddf$vol,expmoddf$ndiv,ss,sig,zf[1],zf[2],zf[3],zf[4],zf[5],zf[6],zf[7],zf[8])
+  return(p)
+}
+```
+
+
+```{r fig.height=8, fig.width=15}
+ncat<-20
+cat<-quantile(exp_data$vol,seq(0,1,length.out=ncat+1))
+#scat<-scat[2:ncat-1]
+#exp_data$scat<-cut(log2(exp_data$vol),breaks = c(min(log2(exp_data$vol)),scat,max(log2(exp_data$vol))))
+exp_data$scat<-cut(exp_data$vol,breaks = cat, include.lowest=TRUE)
+
+scatp<-exp_data%>%
+  group_by(scat,ndiv)%>%
+  mutate(pscat=n()/(nrow(exp_data)/ncat))%>%
+  group_by(scat)%>%
+  mutate(ms=mean(vol))
+scatm<-scatp
+scatp<-unique(scatp[,-1])
+
+gpdata<-ggplot(exp_data,aes(x=vol,y=as.factor(ndiv),color=as.factor(ndiv)))+geom_jitter()+scale_x_log10(limits=c(70,3000))+ theme(axis.title.x = element_blank())+ylab("Divisions")
+#gpscatm<-ggplot(scatm,aes(x=as.factor(round(ms,1)),y=as.factor(ndiv),color=as.factor(ndiv)))+geom_jitter() + theme(axis.title.x = element_blank())+ylab("Divisions")
+gpdens<-ggplot(scatp,aes(x=ms,y=pscat,color=as.factor(ndiv)))+geom_point(size=2)+geom_line(size=1)+scale_x_log10(limits=c(70,3000)) + theme(axis.title.x = element_blank())+ylab("Probability")
+
+
+rngvoldf<-exp_data%>%
+  group_by(ndiv)%>%
+  summarise(min_vol=min(vol),max_vol=max(vol))
+
+expmod<-data.frame(vol=seq(rngvoldf[[1,"min_vol"]],rngvoldf[[1,"max_vol"]]))
+expmod$ndiv<-rngvoldf[[1,"ndiv"]]
+
+expmoddf<-expmod
+
+for (i in 2:6) {
+  expmod<-data.frame(vol=seq(rngvoldf[[i,"min_vol"]],rngvoldf[[i,"max_vol"]]))
+  expmod$ndiv<-rngvoldf[[i,"ndiv"]]
+  expmoddf<-rbind(expmoddf,expmod)
+}
+
+expmoddf$p_plwo<-pf_pl(170,0.01)
+expmoddf$p_pl<-pf_pl(170,0.5)
+expmoddf$p_d<-pf_d(198.3107,0.3099628,c(0.2488859,0.5247278,1.674277,2.543094,3.516225,5.625057))
+#expmoddf$p_3p<-pf_3p(147,0.3,0.7)
+#expmoddf$p_5p<-pf_5p(143,0.3,c(0.7,0.99,2.14))
+
+expmoddf<-expmoddf%>%
+  pivot_longer(-c("vol","ndiv"),names_to = "src",values_to = "p")
+
+expmod<-scatp[,c("ms","ndiv","pscat")]
+colnames(expmod)<-c("vol","ndiv","p")
+expmod$src<-"exp"
+
+expmoddf<-rbind(expmoddf,expmod)
+
+gpexpmod<-ggplot(expmoddf%>%filter(!src=="exp"))+
+  geom_line(aes(x=vol,y=p,color=src,linetype=src),size=2)+
+  geom_point(data=expmoddf%>%filter(src=="exp"),aes(x=vol,y=p))+
+  scale_x_log10()+
+  facet_wrap(~ndiv,nrow=1,scales="free_x")+xlab("Mother pre-division volume")+ylab("Probability")
+
+#grid.arrange(gpdata,gpscatm,gpdens,gpexpmod,
+             #layout_matrix = rbind(c(1),c(2),c(3),c(4)))
+pg<-plot_grid(gpdata+ theme(legend.position="none"),gpdens+ theme(legend.position="none"),gpexpmod+ theme(legend.position="none"),ncol=1,align = "v",axis = "rlbt")
+
+lgndndiv <- get_legend(
+  # create some space to the left of the legend
+  gpdata+ 
+    guides(color = guide_legend(nrow = 1)) +
+    theme(legend.position = "bottom")
+)
+
+lgndmdl <- get_legend(
+  # create some space to the left of the legend
+  gpexpmod+ 
+    guides(color = guide_legend(nrow = 1)) +
+    theme(legend.position = "bottom")
+)
+
+lgnds<-plot_grid(lgndndiv,lgndmdl,nrow=1)
+
+plot_grid(pg, lgnds, ncol = 1, rel_heights = c(1, .1))
+```
+
+```{r fig.height=3, fig.width=15}
+gpdata<-ggplot(exp_data,aes(x=vol,y=as.factor(ndiv),color=as.factor(ndiv)))+
+  geom_jitter(alpha=0.3)+
+  scale_x_log10(limits=c(10,10000))+
+  theme_classic()
+gpdata
+ggsave("wt_div_mth.png",width = 15,height = 3)
+```
+```{r fig.height=3, fig.width=15}
+gpexpmod0<-ggplot(expmoddf%>%filter(src=="p_3p"))+
+  geom_line(aes(x=vol,y=p,color=as.factor(ndiv)),size=2,alpha=0.5)+
+  geom_point(data=expmoddf%>%filter(src=="exp"),aes(x=vol,y=p,color=as.factor(ndiv)))+
+  scale_x_log10(limits=c(10,10000))+
+  ylim(0,1)+
+  theme_classic()
+gpexpmod0
+ggsave("wt_prob_mth.png",width = 15,height = 3)
+```
+
+```{r fig.height=3, fig.width=15}
+gpdens<-gpdens<-ggplot(scatp,aes(x=ms,y=pscat,color=as.factor(ndiv)))+
+  geom_point(size=2)+
+  geom_line(size=1)+scale_x_log10(limits=c(10,10000))+
+  ylab("Probability")+
+  geom_point()+
+  geom_line()+
+  ylab("Probability")+
+  theme_classic()
+gpdens
+ggsave("wt_prob_mth.png",width = 15,height = 3)
+```
+```{r fig.height=3, fig.width=15}
+expmoddf[expmoddf$src=="p_plwo","vol"]<-log2(expmoddf[expmoddf$src=="p_plwo","vol"]/170)
+expmoddf[expmoddf$src=="p_pl","vol"]<-log2(expmoddf[expmoddf$src=="p_pl","vol"]/170)
+expmoddf[expmoddf$src=="p_d","vol"]<-log2(expmoddf[expmoddf$src=="p_d","vol"]/198.3107)
+gpexpmod0<-ggplot(expmoddf%>%filter(!src=="exp",ndiv==0))+
+  geom_line(aes(x=vol,y=p,color=src,linetype=src),size=2)+
+  ylim(0,1)+
+  scale_x_continuous(breaks = -1:5,limits = c(-1,5))+
+  scale_colour_manual(breaks = c("p_plwo","p_pl","p_d"),values = c("orange","#619CFF","#F8766D"))+
+  theme_classic()
+gpexpmod0
+ggsave("lg2_comp_div0.png",width = 15,height = 3)
+```
+```{r fig.height=3, fig.width=15}
+
+gpexpmod0<-ggplot(expmoddf%>%filter(!src=="exp",ndiv==1))+
+  geom_line(aes(x=vol,y=p,color=src,linetype=src),size=2)+
+  scale_x_continuous(breaks = -1:5,limits = c(-1,5))+
+  scale_colour_manual(breaks = c("p_plwo","p_pl","p_d"),values = c("orange","#619CFF","#F8766D"))+
+  ylim(0,1)+
+  theme_classic()
+gpexpmod0
+ggsave("lg2_comp_div1.png",width = 15,height = 3)
+```
+```{r fig.height=3, fig.width=15}
+
+gpexpmod0<-ggplot(expmoddf%>%filter(!src=="exp",ndiv==2))+
+  geom_line(aes(x=vol,y=p,color=src,linetype=src),size=2)+
+  scale_x_continuous(breaks = -1:5,limits = c(-1,5))+
+  scale_colour_manual(breaks = c("p_plwo","p_pl","p_d"),values = c("orange","#619CFF","#F8766D"))+
+  ylim(0,1)+
+  theme_classic()
+gpexpmod0
+ggsave("lg2_comp_div2.png",width = 15,height = 3)
+```
+
+```{r fig.height=3, fig.width=15}
+
+gpexpmod0<-ggplot(expmoddf%>%filter(!src=="exp",ndiv==3))+
+  geom_line(aes(x=vol,y=p,color=src,linetype=src),size=2)+
+  scale_x_continuous(breaks = -1:5,limits = c(-1,5))+
+  scale_colour_manual(breaks = c("p_plwo","p_pl","p_d"),values = c("orange","#619CFF","#F8766D"))+
+  ylim(0,1)+
+  theme_classic()
+gpexpmod0
+ggsave("lg2_comp_div3.png",width = 15,height = 3)
+```
+
+```{r fig.height=3, fig.width=15}
+
+gpexpmod0<-ggplot(expmoddf%>%filter(!src=="exp",ndiv==4))+
+  geom_line(aes(x=vol,y=p,color=src,linetype=src),size=2)+
+  scale_x_continuous(breaks = -1:5,limits = c(-1,5))+
+  scale_colour_manual(breaks = c("p_plwo","p_pl","p_d"),values = c("orange","#619CFF","#F8766D"))+
+  ylim(0,1)+
+  theme_classic()
+gpexpmod0
+ggsave("lg2_comp_div4.png",width = 15,height = 3)
+```
+```{r fig.height=3, fig.width=15}
+
+gpexpmod0<-ggplot(expmoddf%>%filter(!src=="exp",ndiv==5))+
+  geom_line(aes(x=vol,y=p,color=src,linetype=src),size=2)+
+  scale_x_continuous(breaks = -1:5,limits = c(-1,5))+
+  scale_colour_manual(breaks = c("p_plwo","p_pl","p_d"),values = c("orange","#619CFF","#F8766D"))+
+  ylim(0,1)+
+  theme_classic()
+gpexpmod0
+ggsave("lg2_comp_div5.png",width = 15,height = 3)
+```
+
+
+```{r fig.height=3, fig.width=15}
+gpexpmod1<-ggplot(expmoddf%>%filter(!src=="exp",ndiv==1))+
+  geom_line(aes(x=vol,y=p,color=src,linetype=src),size=2)+
+  geom_point(data=expmoddf%>%filter(src=="exp",ndiv==1),aes(x=vol,y=p))+
+  scale_x_log10(limits=c(10,10000))+
+  ylim(0,1)+
+  theme_classic()
+gpexpmod1
+ggsave("wt_prob_mth_div1.png",width = 15,height = 3)
+```
+```{r fig.height=3, fig.width=15}
+gpexpmod2<-ggplot(expmoddf%>%filter(!src=="exp",ndiv==2))+
+  geom_line(aes(x=vol,y=p,color=src,linetype=src),size=2)+
+  geom_point(data=expmoddf%>%filter(src=="exp",ndiv==2),aes(x=vol,y=p))+
+  scale_x_log10(limits=c(10,10000))+
+  ylim(0,1)+
+  theme_classic()
+gpexpmod2
+ggsave("wt_prob_mth_div2.png",width = 15,height = 3)
+```
+```{r fig.height=3, fig.width=15}
+gpexpmod3<-ggplot(expmoddf%>%filter(!src=="exp",ndiv==3))+
+  geom_line(aes(x=vol,y=p,color=src,linetype=src),size=2)+
+  geom_point(data=expmoddf%>%filter(src=="exp",ndiv==3),aes(x=vol,y=p))+
+  scale_x_log10(limits=c(10,10000))+
+  ylim(0,1)+
+  theme_classic()
+gpexpmod3
+ggsave("wt_prob_mth_div3.png",width = 15,height = 3)
+```
+
+```{r fig.height=3, fig.width=15}
+gpexpmod4<-ggplot(expmoddf%>%filter(!src=="exp",ndiv==4))+
+  geom_line(aes(x=vol,y=p,color=src,linetype=src),size=2)+
+  geom_point(data=expmoddf%>%filter(src=="exp",ndiv==4),aes(x=vol,y=p))+
+  scale_x_log10(limits=c(10,10000))+
+  ylim(0,1)+
+  theme_classic()
+gpexpmod4
+ggsave("wt_prob_mth_div4.png",width = 15,height = 3)
+```
+```{r fig.height=3, fig.width=15}
+gpexpmod5<-ggplot(expmoddf%>%filter(!src=="exp",ndiv==5))+
+  geom_line(aes(x=vol,y=p,color=src,linetype=src),size=2)+
+  geom_point(data=expmoddf%>%filter(src=="exp",ndiv==5),aes(x=vol,y=p))+
+  scale_x_log10(limits=c(10,10000))+
+  ylim(0,1)+
+  theme_classic()
+gpexpmod5
+ggsave("wt_prob_mth_div5.png",width = 15,height = 3)
+```
+```{r}
+ggplot(expmoddf%>%filter(src=="exp",ndiv==0),aes(x=vol,y=log(p)))+
+  geom_point()+
+  geom_smooth(method='lm', formula= y~x)+
+  geom_smooth(method='lm', formula= y~I(-x^2), color = "red")+
+  geom_smooth(method='lm', formula= y~I(-x^4), color = "black")
+```
+```{r}
+ggplot(expmoddf%>%filter(src=="exp",ndiv==0),aes(x=vol,y=log(p)))+
+  geom_point()+
+  geom_smooth(method='lm', formula= y~x)+
+  geom_smooth(method='lm', formula= y~x+I(-x^2), color = "red")+
+  geom_smooth(method='lm', formula= y~I(-x^4), color = "black")
+```

@@ -1,0 +1,263 @@
+---
+title: "Boostraping dp1 small data for model selection"
+output: html_notebook
+---
+
+ 
+
+```{r include=FALSE}
+library(readxl)
+library(nloptr)
+library(tidyverse)
+library(plotly)
+```
+
+Experimental data
+```{r}
+exp_data <- read_excel("dp1_big.xlsx")
+```
+
+Power law model
+```{r}
+lgp_pl<-function(vl,nd,ss,sig){
+  if(nd<=0){
+    p<-pnorm(nd-log2(vl/ss),0,sig)
+  }else{
+    p<-pnorm(nd-log2(vl/ss),0,sig)-pnorm(nd-1-log2(vl/ss),0,sig)
+  }
+  if(is.nan(p)){
+    return(-Inf)
+  }else{
+    if(p<=0){return(-Inf)}else{return(log(p))}
+    
+  }
+}
+
+llk_pl<-function(ss,sig){
+  lp<-mapply(lgp_pl,data$vol,data$ndiv,ss,sig)
+  if(any(is.nan(lp)))
+    return(-Inf)
+  else
+    return(sum(lp))
+}
+
+ef_pl<-function(x){
+  ss<-x[1]
+  sig<-x[2]
+  return(-llk_pl(ss,sig))
+}
+```
+
+Free parameter model likelihood function, models stating from 3 parameters free
+```{r}
+lgp_fp<-function(...){
+  x<-list(...)
+  vl<-x[[1]]
+  nd<-x[[2]]
+  ss<-x[[3]]
+  sig<-x[[4]]
+  zf<-as.numeric(x[5:length(x)])
+  
+  z<-c(zf,seq(length(zf),nd+1))
+  if(nd<=0){
+    p<-pnorm(z[1]-log2(vl/ss),0,sig)
+  }else{
+    p<-pnorm(z[nd+1]-log2(vl/ss),0,sig)-pnorm(z[nd]-log2(vl/ss),0,sig)
+  }
+  if(is.nan(p)){
+    return(-Inf)
+  }else{
+    if(p<=0){return(-Inf)}else{return(log(p))}
+    
+  }
+}
+```
+
+
+```{r}
+lgp_fp(100,0,151.0743, 0.3126285, 0.6355754, 0.9142142)
+```
+General restriction setup
+```{r}
+eg0_fp<-function(x){
+  zf<-x[3:length(x)]
+  g0<-zf[1:(length(zf)-1)]-zf[2:length(zf)]
+  return(g0)
+}
+```
+
+Three parameter model wrapper for optimization
+```{r}
+llk_3p<-function(ss,sig,zf){
+  lp<-mapply(lgp_fp,data$vol,data$ndiv,ss,sig,zf[1])
+  if(any(is.nan(lp)))
+    return(-Inf)
+  else
+    return(sum(lp))
+}
+
+ef_3p<-function(x){
+  ss<-x[1]
+  sig<-x[2]
+  zf<-x[3:length(x)]
+  return(-llk_3p(ss,sig,zf))
+}
+
+```
+
+
+Four parameter model wrapper for optimization
+```{r}
+llk_4p<-function(ss,sig,zf){
+  lp<-mapply(lgp_fp,data$vol,data$ndiv,ss,sig,zf[1],zf[2])
+  if(any(is.nan(lp)))
+    return(-Inf)
+  else
+    return(sum(lp))
+}
+
+ef_4p<-function(x){
+  ss<-x[1]
+  sig<-x[2]
+  zf<-x[3:length(x)]
+  return(-llk_4p(ss,sig,zf))
+}
+```
+
+Five parameter model wrapper for optimization
+```{r}
+llk_5p<-function(ss,sig,zf){
+  lp<-mapply(lgp_fp,data$vol,data$ndiv,ss,sig,zf[1],zf[2],zf[3])
+  if(any(is.nan(lp)))
+    return(-Inf)
+  else
+    return(sum(lp))
+}
+
+ef_5p<-function(x){
+  ss<-x[1]
+  sig<-x[2]
+  zf<-x[3:length(x)]
+  return(-llk_5p(ss,sig,zf))
+}
+```
+
+Six parameter model wrapper for optimization
+```{r}
+llk_6p<-function(ss,sig,zf){
+  lp<-mapply(lgp_fp,data$vol,data$ndiv,ss,sig,zf[1],zf[2],zf[3],zf[4])
+  if(any(is.nan(lp)))
+    return(-Inf)
+  else
+    return(sum(lp))
+}
+
+ef_6p<-function(x){
+  ss<-x[1]
+  sig<-x[2]
+  zf<-x[3:length(x)]
+  return(-llk_6p(ss,sig,zf))
+}
+```
+
+Seven parameter model wrapper for optimization
+```{r}
+llk_7p<-function(ss,sig,zf){
+  lp<-mapply(lgp_fp,data$vol,data$ndiv,ss,sig,zf[1],zf[2],zf[3],zf[4],zf[5])
+  if(any(is.nan(lp)))
+    return(-Inf)
+  else
+    return(sum(lp))
+}
+
+ef_7p<-function(x){
+  ss<-x[1]
+  sig<-x[2]
+  zf<-x[3:length(x)]
+  return(-llk_7p(ss,sig,zf))
+}
+```
+
+Optimization
+```{r}
+loglv<- data.frame(matrix(ncol = 3, nrow = 0))
+colnames(loglv)<-c("llk_pl","llk_3pp","llk_7p")
+for(i in 1:1000){
+  data<-exp_data
+  data<-data[sample(nrow(data),nrow(data),replace = TRUE),]
+  
+  #Power law model search
+  res<-nloptr(x0=c(169.9803,0.5120379),
+              eval_f = ef_pl,
+              lb=c(50,0.1),
+              ub=c(500,0.9),
+              opts = list("algorithm"="NLOPT_LN_COBYLA",
+              "xtol_rel"=1.0e-2,"maxeval"=10000))
+  
+  
+  loglv[[nrow(loglv)+1,1]]=res$objective
+  
+  
+  #Four parameter model search
+  res<-nloptr(x0=c(100,0.2,0,1.1),
+              eval_f = ef_4p,
+              eval_g_ineq = eg0_fp,
+              lb=c(50,0.2,0,0),
+              ub=c(500,0.9,0,2.5),
+              opts = list("algorithm"="NLOPT_LN_COBYLA",
+              "xtol_rel"=1.0e-2,"maxeval"=10000))
+  
+  loglv[[nrow(loglv),2]]=res$objective
+  
+  
+  
+  #Seven parameter model search
+  res<-nloptr(x0=c(100,0.2,0.1,1.1,2.1,3,4),
+              eval_f = ef_7p,
+              eval_g_ineq = eg0_fp,
+              lb=c(50,0.0,0,0.5,1.5,2.5,3.5),
+              ub=c(500,0.9,1.5,2.5,3.5,4.5,5.5),
+              opts = list("algorithm"="NLOPT_LN_COBYLA",
+              "xtol_rel"=1.0e-2,"maxeval"=10000))
+  
+  loglv[[nrow(loglv),3]]=res$objective
+}
+```
+
+```{r}
+write.csv(loglv,"boot_dp1_cmp_r4.csv")
+```
+
+```{r}
+loglv$id<-1:1000
+ggplot(loglv%>%pivot_longer(-id,values_to = "llk",names_to = "model"),aes(x=as.factor(model),y=-llk))+
+  geom_boxplot(notch = TRUE)
+```
+```{r}
+loglv$id<-1:1000
+aicdf<-loglv
+aicdf$llk_7p<-aicdf$llk_7p+14
+aicdf$llk_3pp<-aicdf$llk_3pp+6
+aicdf$llk_pl<-aicdf$llk_pl+4
+aicdf<-aicdf%>%pivot_longer(-id,values_to = "aic",names_to = "model")
+aicdf$model=factor(aicdf$model,levels = c("llk_pl","llk_3pp","llk_7p"))
+gp<-ggplot(aicdf,aes(x=as.factor(model),y=aic))+
+  geom_boxplot(notch = TRUE)
+gp
+ggplotly(gp)
+```
+```{r}
+loglv$id<-1:1000
+aicdf<-loglv
+aicdf$llk_7p<-aicdf$llk_7p+14
+aicdf$llk_3pp<-aicdf$llk_3pp+6
+aicdf$llk_pl<-aicdf$llk_pl+4
+aicdf$daic7p<-aicdf$llk_7p-aicdf$llk_3pp
+aicdf$daicpl<-aicdf$llk_pl-aicdf$llk_3pp
+aicdf<-aicdf%>%select(id,daicpl,daic7p)%>%pivot_longer(-id,values_to = "deltaaic",names_to = "model")
+aicdf$model=factor(aicdf$model,levels = c("daicpl","daic7p"))
+gp<-ggplot(aicdf,aes(x=as.factor(model),y=deltaaic))+
+  geom_boxplot(notch = TRUE)
+gp
+ggplotly(gp)
+```

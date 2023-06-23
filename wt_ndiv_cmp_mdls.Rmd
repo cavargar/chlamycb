@@ -1,0 +1,51 @@
+---
+title: "Wild type post division comparison"
+output: html_notebook
+---
+
+
+```{r include=FALSE}
+library(readxl)
+library(tidyverse)
+```
+
+
+```{r}
+expdf<-read_excel("exp_data.xlsx")
+expdf$ori="exp"
+
+
+#Power law model
+fndiv<-function(x,ss,ns){
+  return(sum(log2(x/ss)+rnorm(1,mean=0,sd=ns)>c(0,1,2,3,4,5)))
+}
+ndiv<-apply(X=expdf[,1],MARGIN=1,FUN=fndiv,169.9798,0.7)
+pldf<-data.frame(vol=expdf$vol,ndiv=ndiv)
+pldf$ori<-"pl"
+
+#3 parameter model
+fndiv<-function(x,ss,ns,z0){
+  return(sum(log2(x/ss)+rnorm(1,mean=0,sd=ns)>c(z0,1,2,3,4,5)))
+}
+ndiv<-apply(X=expdf[,1],MARGIN=1,FUN=fndiv,146.6105, 0.3111578, 0.7004869)
+p3df<-data.frame(vol=expdf$vol,ndiv=ndiv)
+p3df$ori<-"3p"
+
+cmpdf<-rbind(expdf,pldf,p3df)
+```
+
+
+
+Plots
+```{r}
+
+ggplot(cmpdf)+
+  geom_histogram(aes(x=as.factor(ndiv),fill=as.factor(ori)),stat = "count",position = "dodge")
+
+ggplot(cmpdf)+
+  geom_histogram(aes(y=as.factor(ndiv),fill=as.factor(ori)),stat = "count",position = "dodge")
+
+```
+
+
+

@@ -1,0 +1,53 @@
+---
+title: "mat3 post division comparison"
+output: html_notebook
+---
+
+
+```{r include=FALSE}
+library(readxl)
+library(ggplot2)
+library(tidyverse)
+library(magrittr)
+```
+
+
+```{r}
+expdf<-read_excel("mat3_small.xlsx")
+expdf$ori="exp"
+
+
+#Power law model
+fndiv<-function(x,ss,ns){
+  return(sum(log2(x/ss)+rnorm(1,mean=0,sd=ns)>c(0,1,2,3,4,5)))
+}
+ndiv<-apply(X=expdf[,1],MARGIN=1,FUN=fndiv,62.80659, 0.6020562)
+pldf<-data.frame(vol=expdf$vol,ndiv=ndiv)
+pldf$ori<-"pl"
+
+#3 parameter model
+fndiv<-function(x,ss,ns,z0,z1){
+  return(sum(log2(x/ss)+rnorm(1,mean=0,sd=ns)>c(z0,z1,2,3,4,5)))
+}
+ndiv<-apply(X=expdf[,1],MARGIN=1,FUN=fndiv,66.4923, 0.5305283, 0.1727711, 0.6139287)
+p3df<-data.frame(vol=expdf$vol,ndiv=ndiv)
+p3df$ori<-"4p"
+
+cmpdf<-rbind(expdf,pldf,p3df)
+```
+
+
+
+Plots
+```{r}
+
+ggplot(cmpdf)+
+  geom_histogram(aes(x=as.factor(ndiv),fill=as.factor(ori)),stat = "count",position = "dodge")
+
+ggplot(cmpdf)+
+  geom_histogram(aes(y=as.factor(ndiv),fill=as.factor(ori)),stat = "count",position = "dodge")
+
+```
+
+
+
